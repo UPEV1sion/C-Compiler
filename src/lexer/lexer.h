@@ -57,7 +57,7 @@ typedef enum
 
     /*--------OPERATORS: CONDITIONAL--------*/
     TokQuestionMark,
-    TokQuestionColon,
+    TokColon,
 
     /*--------DELIMITERS--------*/
     TokComma,
@@ -80,33 +80,19 @@ typedef enum
     TokUnsignedLongLiteral,
     TokUnsignedLongLongLiteral,
     TokStringLiteral,
-    TokBooleanLiteral,
-    TokNullLiteral,
 
     /*--------IDENTIFIER--------*/
     TokIdentifier,
-
-    /*--------COMMENTS--------*/
-    TokSingleLineComment,
-    TokMultiLineComment,
 
     /*--------KEYWORDS: DATA TYPES--------*/
     TokChar,
     TokShort,
     TokInt,
     TokLong,
-    TokLongLong,
     TokFloat,
     TokDouble,
-    TokLongDouble,
-    TokBool,
     TokVoid,
     TokUnsigned,
-    TokUChar,
-    TokUShort,
-    TokUInt,
-    TokULong,
-    TokULongLong,
 
     /*--------KEYWORDS: COMPLEX DATA TYPES--------*/
     TokStruct,
@@ -142,10 +128,15 @@ typedef enum
     TokSizeof,
 } TokenType;
 
+enum
+{
+    MAX_TOK_LEN = 64
+};
+
 typedef struct
 {
     TokenType type;
-    const char *literal;
+    char literal[MAX_TOK_LEN];
 } Token;
 
 typedef struct Lexer Lexer;

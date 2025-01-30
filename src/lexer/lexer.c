@@ -7,14 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-
-enum
-{
-    MAX_TOK_LEN = 64
-};
-
-#define is_data_type(c) ((c) >= TokChar && (c) <= TokULongLong)
-#define is_num_literal(c) ((c) >= TokCharLiteral && (c) <= TokUnsignedLongLongLiteral)
+#include <string.h>
 
 struct Lexer
 {
@@ -23,8 +16,55 @@ struct Lexer
     size_t line;
     size_t column;
     int current_char;
-    Token *prev_token;
-    Token *next_token;
+};
+
+struct keyword
+{
+    const char *keyword;
+    TokenType type;
+};
+
+const static struct keyword KEYWORDS[] = {
+        /*--------KEYWORDS: DATA TYPES--------*/
+        {"char",     TokChar},
+        {"short",    TokShort},
+        {"int",      TokInt},
+        {"long",     TokLong},
+        {"float",    TokFloat},
+        {"double",   TokDouble},
+        {"void",     TokVoid},
+        {"unsigned", TokUnsigned},
+        {"struct",   TokStruct},
+        {"union",    TokUnion},
+        {"enum",     TokEnum},
+        {"typedef",  TokTypedef},
+
+        /*--------KEYWORDS: STORAGE CLASS SPECIFIERS--------*/
+        {"const",    TokConst},
+        {"volatile", TokVolatile},
+        {"restrict", TokRestrict},
+        {"auto",     TokAuto},
+        {"register", TokRegister},
+        {"static",   TokStatic},
+        {"extern",   TokExtern},
+        {"inline",   TokInline},
+
+        /*--------KEYWORDS: CONTROL FLOW--------*/
+        {"if",       TokIf},
+        {"else",     TokElse},
+        {"for",      TokFor},
+        {"while",    TokWhile},
+        {"do",       TokDo},
+        {"switch",   TokSwitch},
+        {"case",     TokCase},
+        {"default",  TokDefault},
+        {"return",   TokReturn},
+        {"break",    TokBreak},
+        {"continue", TokContinue},
+        {"goto",     TokGoto},
+
+        /*--------KEYWORDS: OTHER--------*/
+        {"sizeof",   TokSizeof},
 };
 
 int cleanup_lexer(Lexer *lexer)
@@ -75,7 +115,8 @@ static Token *create_tok(const TokenType type, const char *literal)
     }
 
     tok->type = type;
-    tok->literal = literal;
+    strncpy(tok->literal, literal, MAX_TOK_LEN);
+    tok->literal[MAX_TOK_LEN - 1] = 0;
 
     return tok;
 }
@@ -98,9 +139,78 @@ static void skip_spaces(Lexer *lexer)
     }
 }
 
-static void next_char(Lexer *lexer)
+
+static void skip_comments(Lexer *lexer);
+
+static int next_char(Lexer *lexer)
 {
+
     lexer->current_char = fgetc(lexer->file);
+    if (lexer->current_char == '\n')
+    {
+        lexer->column = 1;
+        lexer->line++;
+    }
+    else
+    {
+        lexer->column++;
+    }
+    skip_comments(lexer);
+
+    return lexer->current_char;
+}
+
+static void skip_line(Lexer *lexer)
+{
+    while ((lexer->current_char = fgetc(lexer->file)) != '\n' && lexer->current_char != EOF);
+    if (lexer->current_char == '\n')
+    {
+        lexer->current_char = fgetc(lexer->file);
+        lexer->column = 1;
+        lexer->line++;
+    }
+}
+
+static void skip_multiline_comment(Lexer *lexer)
+{
+    do
+    {
+        lexer->current_char = fgetc(lexer->file);
+        if (lexer->current_char == '\n')
+        {
+            lexer->line++;
+            lexer->column = 1;
+        }
+        else
+        {
+            lexer->column++;
+        }
+    } while (lexer->current_char != '*' && lexer->current_char != EOF);
+
+    if (lexer->current_char == '*')
+    {
+        lexer->current_char = fgetc(lexer->file);
+        if (lexer->current_char == '/')
+        {
+            lexer->current_char = fgetc(lexer->file);
+        }
+    }
+}
+
+static void skip_comments(Lexer *lexer)
+{
+    if (lexer->current_char == '/')
+    {
+        lexer->current_char = fgetc(lexer->file);
+        if (lexer->current_char == '/') // Single line comment like this one
+        {
+            skip_line(lexer);
+        }
+        else if (lexer->current_char == '*')
+        {
+            skip_multiline_comment(lexer);
+        }
+    }
 }
 
 
@@ -124,16 +234,10 @@ match_compound_operator(Lexer *lexer, const char base, const TokenType assignmen
 
 Token *next_tok(Lexer *lexer)
 {
-    Token *tok = NULL;
-    if (lexer->next_token != NULL)
-    {
-        tok = lexer->next_token;
-        lexer->next_token = NULL;
-        return tok;
-    }
 
     skip_spaces(lexer);
 
+    Token *tok = NULL;
     switch (lexer->current_char)
     {
         case '=':
@@ -164,6 +268,10 @@ Token *next_tok(Lexer *lexer)
             if (lexer->current_char == '-') // --
             {
                 tok = create_tok(TokDecrement, "--");
+            }
+            else if (lexer->current_char == '>')
+            {
+                tok = create_tok(TokArrow, "->");
             }
             else
             {
@@ -252,15 +360,192 @@ Token *next_tok(Lexer *lexer)
             next_char(lexer);
             tok = match_compound_operator(lexer, '~', TokBitwiseNotAssign, TokBitwiseNot);
             break;
+        case '?':
+            tok = create_tok(TokQuestionMark, "?");
+            break;
+        case ':':
+            tok = create_tok(TokColon, ",");
+            break;
+        case ',':
+            tok = create_tok(TokComma, ",");
+            break;
+        case '.':
+            tok = create_tok(TokDot, ".");
+            break;
+        case ';':
+            tok = create_tok(TokSemicolon, ";");
+            break;
+        case '(':
+            tok = create_tok(TokLParen, "(");
+            break;
+        case ')':
+            tok = create_tok(TokRParen, ")");
+            break;
+        case '{':
+            tok = create_tok(TokLSquirly, "{");
+            break;
+        case '}':
+            tok = create_tok(TokRSquirly, "}");
+            break;
+        case '[':
+            tok = create_tok(TokLBracket, "[");
+            break;
+        case ']':
+            tok = create_tok(TokRBracket, "]");
+            break;
+        case '0' ... '9':
+        {
+            char number[MAX_TOK_LEN];
+            size_t i = 0;
+            while (lexer->current_char != EOF && (isdigit(lexer->current_char) || lexer->current_char == '.'))
+            {
+                if (i >= MAX_TOK_LEN - 1) break;
+                number[i++] = (char) lexer->current_char;
+                next_char(lexer);
+            }
+            number[i] = 0;
+            if (lexer->current_char == EOF)
+            {
+                tok = create_tok(TokEOF, "EOF");
+                break;
+            }
+            else
+            {
+                ungetc(lexer->current_char, lexer->file);
+            }
+
+            //TODO more refined.
+            tok = strchr(number, '.') ? create_tok(TokDoubleLiteral, number) : create_tok(TokIntLiteral, number);
+            break;
+        }
+        case 'a' ... 'z': //TODO refactor
+        case 'A' ... 'Z':
+        case '_':
+        {
+            char buffer[MAX_TOK_LEN];
+            size_t i = 0;
+            while (lexer->current_char != EOF && (isalnum(lexer->current_char) || lexer->current_char == '_'))
+            {
+                if (i >= MAX_TOK_LEN - 1) break;
+                buffer[i++] = (char) lexer->current_char;
+                next_char(lexer);
+            }
+            buffer[i] = 0;
+            if (lexer->current_char == EOF)
+            {
+                tok = create_tok(TokEOF, "EOF");
+                break;
+            }
+            else
+            {
+                ungetc(lexer->current_char, lexer->file);
+            }
+
+            for (size_t j = 0; j < sizeof KEYWORDS / sizeof KEYWORDS[0]; ++j)
+            {
+                if (strcmp(buffer, KEYWORDS[j].keyword) == 0)
+                {
+                    tok = create_tok(KEYWORDS[j].type, KEYWORDS[j].keyword);
+                    goto WORD_END;
+                }
+            }
+
+            tok = create_tok(TokIdentifier, buffer);
+
+            WORD_END:
+            break;
+        }
+        case '"':
+        {
+            char string_literal[MAX_TOK_LEN];
+            size_t i = 0;
+            next_char(lexer);
+            while (lexer->current_char != EOF && lexer->current_char != '"')
+            {
+                if (i >= MAX_TOK_LEN - 1) break;
+                string_literal[i++] = (char) lexer->current_char;
+                next_char(lexer);
+            }
+            string_literal[i] = 0;
+
+            if (lexer->current_char == EOF)
+            {
+                tok = create_tok(TokEOF, "EOF");
+                break;
+            }
+            if (lexer->current_char == '"' && i <= MAX_TOK_LEN - 1)
+            {
+                tok = create_tok(TokStringLiteral, string_literal);
+            }
+
+            break;
+        }
+        case '\'':
+        {
+            char char_literal[MAX_TOK_LEN];
+            size_t i = 0;
+
+            next_char(lexer);
+
+            while (lexer->current_char != EOF && lexer->current_char != '\'')
+            {
+                if (i >= MAX_TOK_LEN - 1)
+                {
+                    break;
+                }
+                if (lexer->current_char == '\\')
+                {
+                    next_char(lexer);
+                    switch (lexer->current_char)
+                    {
+                        case 'n':
+                            char_literal[i++] = '\n';
+                            break;
+                        case 't':
+                            char_literal[i++] = '\t';
+                            break;
+                        case '\\':
+                            char_literal[i++] = '\\';
+                            break;
+                        case '\'':
+                            char_literal[i++] = '\'';
+                            break;
+                        case '0':
+                            char_literal[i++] = '\0';
+                            break;
+                        default:
+                            char_literal[i] = 0;
+                            tok = create_tok(TokIllegal, char_literal);
+                            goto CHAR_END;
+                    }
+                }
+                else
+                {
+                    char_literal[i++] = (char) lexer->current_char;
+                }
+
+                next_char(lexer);
+            }
+
+            if (lexer->current_char == '\'')
+            {
+                char_literal[i] = 0;
+                tok = create_tok(TokCharLiteral, char_literal);
+            }
+            else
+            {
+                fprintf(stderr, "Character literal not closed properly.\n");
+                return NULL;
+            }
+            CHAR_END:
+            break;
+        }
+
         case EOF:
             tok = create_tok(TokEOF, "EOF");
             break;
-        default:
-            tok = NULL;
-            break;
     }
 
-    lexer->prev_token = tok;
     next_char(lexer);
 
     return tok;
