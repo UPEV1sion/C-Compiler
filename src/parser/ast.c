@@ -6,10 +6,12 @@
 
 #include <stdlib.h>
 
-#define new_node(node) do { \
-    node = malloc(sizeof(ASTNode)); \
-    if(node == NULL) return NULL; \
-while(0)
+typedef struct
+{
+    Lexer *lexer;
+    Token cur;
+    Token peek;
+} Parser;
 
 typedef enum
 {
@@ -62,7 +64,6 @@ struct ASTNode
 
         struct
         {
-            ASTNode *next;
             char name[MAX_TOK_LEN];
         } identifier;
 
@@ -70,22 +71,22 @@ struct ASTNode
         {
             TokenType type;
             ASTNode *op;
-        } unaryOp;
+        } unary_op;
 
         struct
         {
             TokenType type;
             ASTNode *left;
             ASTNode *right;
-        } binaryOp;
+        } binary_op;
 
         struct
         {
             TokenType type;
-            ASTNode *left;
-            ASTNode *middle;
-            ASTNode *right;
-        } ternaryOp;
+            ASTNode *condition;
+            ASTNode *true_branch;
+            ASTNode *false_branch;
+        } ternary_op;
 
         struct
         {
@@ -97,50 +98,52 @@ struct ASTNode
         {
             char func_name[MAX_TOK_LEN];
             ASTNode *args;
-        } functionCall;
+        } function_call;
 
         struct
         {
             char name[MAX_TOK_LEN];
             ASTNode *args;
-        } structDecl;
+        } struct_decl;
 
         struct
         {
             char name[MAX_TOK_LEN];
             ASTNode *args;
-        } unionDecl;
+        } union_decl;
 
         struct
         {
             char name[MAX_TOK_LEN];
             ASTNode *args;
-        } enumDecl;
+        } enum_decl;
 
         struct
         {
             char name[MAX_TOK_LEN];
             ASTNode *args;
-        } functionDecl;
+            ASTNode *body;
+        } function_decl;
 
         struct
         {
             ASTNode *condition;
             ASTNode *body;
             ASTNode *alternate_body;
-        } branch;
+            ASTNode *next;
+        } if_statement;
 
         struct
         {
             ASTNode *condition;
             ASTNode *body;
-        } whileLoop;
+        } while_loop;
 
         struct
         {
             ASTNode *condition;
             ASTNode *body;
-        } doWhileLoop;
+        } do_while_loop;
 
         struct
         {
@@ -148,67 +151,54 @@ struct ASTNode
             ASTNode *var;
             ASTNode *step;
             ASTNode *body;
-        } forLoop;
-
-        struct
-        {
-            //TODO later
-        } breakKeyword;
+        } for_loop;
 
         struct
         {
             ASTNode *label;
-        } gotoStatement;
+        } goto_statement;
 
         struct
         {
-            char name[MAX_TOK_LEN];
-        } label;
+            ASTNode *elements;
+        } array_decl;
 
         struct
         {
-            //TODO later
-        } array;
+            ASTNode *var;
+            ASTNode *index;
+        } array_access;
 
         struct
         {
-            ASTNode *element;
+            ASTNode *var_type;
             char var_name[MAX_TOK_LEN]; //only the last one
-        } varDecl;
+            ASTNode *init_value;
+        } var_decl;
 
         struct
         {
             ASTNode *element;
             ASTNode *cases;
             ASTNode *default_case;
-        } switchStatement;
+        } switch_statement;
 
         struct
         {
-            union
-            {
-                int case_val;
-                char case_str[MAX_TOK_LEN];
-            };
             ASTNode *expr;
             ASTNode *statement;
             ASTNode *next;
-        } caseStatement;
-
-        struct
-        {
-            char brace;
-        } brace;
+        } case_statement;
 
         struct
         {
             ASTNode *param;
-        } sizeofKeyword;
+        } sizeof_keyword;
 
         struct
         {
-            ASTNode *val;
-        } returnKeyword;
+            ASTNode *ret;
+        } return_keyword;
     };
 };
 
@@ -406,10 +396,6 @@ static ASTNode next_node(Lexer *lexer)
     return node;
 }
 
-static int evaluate(ASTNode *node)
-{
-    if(node->type == ASTNodeLiteral)
-}
 
 ASTNode *build_AST(Lexer *lexer)
 {
