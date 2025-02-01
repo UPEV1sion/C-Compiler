@@ -4,13 +4,24 @@
 
 #include "ast.h"
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+
+#define create_node(node) do { \
+    node = malloc(sizeof(ASTNode)); \
+    if(node == NULL) { \
+        fprintf(stderr, "Couldn't malloc node"); \
+        return NULL; \
+    }}while(0)
+
 
 typedef struct
 {
     Lexer *lexer;
-    Token cur;
-    Token peek;
+    Token *cur;
+    Token *peek;
 } Parser;
 
 typedef enum
@@ -396,11 +407,100 @@ static ASTNode next_node(Lexer *lexer)
     return node;
 }
 
+static void next_token(Parser *parser)
+{
+    parser->cur = parser->peek;
+    parser->peek = next_tok(parser->lexer);
+}
 
-ASTNode *build_AST(Lexer *lexer)
+static bool match(Parser *parser, TokenType expected)
+{
+    if (parser->cur->type == expected)
+    {
+        next_token(parser);
+        return true;
+    }
+
+    return false;
+}
+
+static int get_precedence(TokenType type)
+{
+    switch (type)
+    {
+        case TokPlus:
+        case TokMinus:
+            return 10;
+        case TokStar:
+        case TokSlash:
+            return 20;
+        case TokEqual:
+        case TokNotEqual:
+            return 5;
+        default:
+            return 0;
+    }
+}
+
+static ASTNode* parse_primary(Parser *parser)
+{
+    ASTNode *node = malloc(sizeof(ASTNode));
+    if(node == NULL)
+    {
+        fprintf(stderr, "Couldn't malloc node");
+        return NULL;
+    }
+
+    switch (parser->cur->type)
+    {
+        case TokIntLiteral:
+        case TokFloatLiteral:
+        case TokCharLiteral:
+        case TokStringLiteral:
+            node->type = ASTNodeLiteral;
+            node->literal.type = parser->cur->type;
+            strncpy(node->literal.val, parser->cur->literal, MAX_TOK_LEN);
+            next_token(parser);
+            return node;
+
+        case TokIdentifier:
+            node->type = ASTNodeIdentifier;
+            strncpy(node->identifier.name, parser->cur->literal, MAX_TOK_LEN);
+            next_token(parser);
+            return node;
+
+        default:
+            free(node);
+            return NULL;
+    }
+}
+
+static ASTNode* parse_unary(Parser *parser)
+{
+    if (parser->cur->type == TokMinus || parser->cur->type == TokNegation)
+    {
+        ASTNode *node;
+        create_node(node);
+        node->type = AstNodeUnaryOp;
+        node->unary_op.type = parser->cur->type;
+        next_token(parser);
+        node->unary_op.op = parse_unary(parser);
+        return node;
+    }
+
+    return parse_primary(parser);
+}
+
+static ASTNode* parse_binary(Parser *parser, int precedence)
+{
+
+
+}
+
+ASTNode* build_AST(Lexer *lexer)
 {
     ASTNode node;
-    while((node = next_node(lexer)).type != ASTNodeEOF)
+    while ((node = next_node(lexer)).type != ASTNodeEOF)
     {
 
     }

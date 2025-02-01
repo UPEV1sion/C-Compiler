@@ -286,6 +286,10 @@ Token *next_tok(Lexer *lexer)
             next_char(lexer);
             tok = match_compound_operator(lexer, '/', TokSlashAssign, TokSlash);
             break;
+        case '%':
+            next_char(lexer);
+            tok = match_compound_operator(lexer, '%', TokPercentAssign, TokPercent);
+            break;
         case '<':
             next_char(lexer);
             if (lexer->current_char == '<')

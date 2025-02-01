@@ -17,6 +17,7 @@ typedef enum
     TokMinus,
     TokStar, //Also Pointer
     TokSlash,
+    TokPercent,
 
     /*--------OPERATORS: ARITHMETIC ASSIGNMENT--------*/
     TokIncrement,
@@ -25,6 +26,7 @@ typedef enum
     TokMinusAssign,
     TokStarAssign,
     TokSlashAssign,
+    TokPercentAssign,
 
     /*--------OPERATORS: COMPARISON--------*/
     TokLess,
