@@ -76,7 +76,10 @@ typedef enum
     /*--------LITERALS--------*/
     TokCharLiteral,
     TokIntLiteral,
+    TokLongLiteral,
+    TokLongLongLiteral,
     TokFloatLiteral,
+    TokLongDoubleLiteral,
     TokDoubleLiteral,
     TokUnsignedIntLiteral,
     TokUnsignedLongLiteral,

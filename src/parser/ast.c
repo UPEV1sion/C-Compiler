@@ -17,16 +17,19 @@
         return NULL; \
     }}while(0)
 
-
 typedef struct
 {
     Lexer *lexer;
-    Token *cur;
-    Token *peek;
+//    Token *cur;
+//    Token *peek;
     ASTNode *root;
 } Parser;
 
-typedef enum
+
+#define is_numeric_literal(tok) ((tok) >= TokCharLiteral && (tok) <= TokUnsignedLongLongLiteral)
+#define is_unary_operator(tok) ((tok) == TokMinus || (tok) == TokNegation || (tok) == TokDecrement || (tok) == TokIncrement)
+
+typedef enum //TODO group
 {
     ASTNodeIllegal,
     ASTNodeEOF,
@@ -52,6 +55,16 @@ typedef enum
     ASTNodeDefault,
     ASTNodeReturn,
     ASTNodeVarDecl,
+    ASTNodeCharDecl,
+    ASTNodeIntDecl,
+    ASTNodeShortDecl,
+    ASTNodeLongDecl,
+    ASTNodeLongLongDecl,
+    ASTNodeULongDecl,
+    ASTNodeULongLongDecl,
+    ASTNodeFloatDecl,
+    ASTNodeDoubleDecl,
+    ASTNodeVoidDecl,
     ASTNodeFuncDecl,
     ASTNodeStructDecl,
     ASTNodeEnumDecl,
@@ -61,6 +74,11 @@ typedef enum
     ASTNodeParen,
     ASTNodeSquirly,
     ASTNodeSizeof,
+    ASTNodePointerDecl,
+    ASTNodePointerDeref,
+    ASTNodeAddressOf,
+    ASTNodeUnaryNegation,
+    ASTNodeLogicalNegation,
 } ASTNodeType;
 
 
@@ -74,9 +92,17 @@ struct ASTNode
             TokenType type;
             union
             {
-                char val[MAX_TOK_LEN];
-                double double_val;
+                char char_val;
                 int int_val;
+                long long_val;
+                long long longlong_val;
+                float float_val;
+                double double_val;
+                long double longdouble_val;
+                unsigned int uint_val;
+                unsigned long ulong_val;
+                unsigned long long ulonglong_val;
+                char str_val[MAX_TOK_LEN];
             };
         } literal;
 
@@ -220,269 +246,60 @@ struct ASTNode
     };
 };
 
-static const ASTNode AST_NODE_ERROR_DUMMY = {0};
-
-
-static ASTNode next_node(Lexer *lexer)
+static int parse_numeric_literal(Token *tok, ASTNode *node)
 {
-    Token *tok = peek_tok(lexer);
-    if (tok == NULL) return AST_NODE_ERROR_DUMMY;
+    node->type = ASTNodeLiteral;
+    node->literal.type = tok->type;
 
-    ASTNode node = {0};
+    int ret = -1;
 
     switch (tok->type)
     {
-        case TokAssign:
-            node.type = ASTNodeAssign;
-            break;
-        case TokIllegal:
-            break;
-        case TokEOF:
-            break;
-        case TokPlus:
-            break;
-        case TokMinus:
-            break;
-        case TokStar:
-            break;
-        case TokSlash:
-            break;
-        case TokIncrement:
-            break;
-        case TokDecrement:
-            break;
-        case TokPlusAssign:
-            break;
-        case TokMinusAssign:
-            break;
-        case TokStarAssign:
-            break;
-        case TokSlashAssign:
-            break;
-        case TokLess:
-            break;
-        case TokLT:
-            break;
-        case TokGT:
-            break;
-        case TokGreater:
-            break;
-        case TokEqual:
-            break;
-        case TokNotEqual:
-            break;
-        case TokNegation:
-            break;
-        case TokOrOr:
-            break;
-        case TokAndAnd:
-            break;
-        case TokOr:
-            break;
-        case TokAnd:
-            break;
-        case TokBitwiseXor:
-            break;
-        case TokBitwiseNot:
-            break;
-        case TokBitwiseSL:
-            break;
-        case TokBitwiseSR:
-            break;
-        case TokBitwiseOrAssign:
-            break;
-        case TokBitwiseAndAssign:
-            break;
-        case TokBitwiseXorAssign:
-            break;
-        case TokBitwiseNotAssign:
-            break;
-        case TokBitwiseSLAssign:
-            break;
-        case TokBitwiseSRAssign:
-            break;
-        case TokQuestionMark:
-            break;
-        case TokColon:
-            break;
-        case TokComma:
-            break;
-        case TokDot:
-            break;
-        case TokArrow:
-            break;
-        case TokSemicolon:
-            break;
-        case TokLParen:
-            break;
-        case TokRParen:
-            break;
-        case TokLSquirly:
-            break;
-        case TokRSquirly:
-            break;
-        case TokLBracket:
-            break;
-        case TokRBracket:
-            break;
         case TokCharLiteral:
+            node->literal.char_val = *tok->literal;
+            ret = 0;
             break;
         case TokIntLiteral:
+            ret = atoi_s(tok->literal, &node->literal.int_val);
+            break;
+        case TokLongLiteral:
+            ret = atol_s(tok->literal, &node->literal.long_val);
+            break;
+        case TokLongLongLiteral:
+            ret = atoll_s(tok->literal, &node->literal.longlong_val);
             break;
         case TokFloatLiteral:
+            ret = atof_s(tok->literal, &node->literal.float_val);
             break;
         case TokDoubleLiteral:
+            ret = atod_s(tok->literal, &node->literal.double_val);
+            break;
+        case TokLongDoubleLiteral:
+            ret = atold_s(tok->literal, &node->literal.longdouble_val);
             break;
         case TokUnsignedIntLiteral:
+            ret = atoui_s(tok->literal, &node->literal.uint_val);
             break;
         case TokUnsignedLongLiteral:
+            ret = atoul_s(tok->literal, &node->literal.ulong_val);
             break;
         case TokUnsignedLongLongLiteral:
+            ret = atoull_s(tok->literal, &node->literal.ulonglong_val);
             break;
-        case TokStringLiteral:
-            break;
-        case TokIdentifier:
-            break;
-        case TokChar:
-            break;
-        case TokShort:
-            break;
-        case TokInt:
-            break;
-        case TokLong:
-            break;
-        case TokFloat:
-            break;
-        case TokDouble:
-            break;
-        case TokVoid:
-            break;
-        case TokUnsigned:
-            break;
-        case TokStruct:
-            break;
-        case TokUnion:
-            break;
-        case TokEnum:
-            break;
-        case TokTypedef:
-            break;
-        case TokConst:
-            break;
-        case TokVolatile:
-            break;
-        case TokRestrict:
-            break;
-        case TokAuto:
-            break;
-        case TokRegister:
-            break;
-        case TokStatic:
-            break;
-        case TokExtern:
-            break;
-        case TokInline:
-            break;
-        case TokIf:
-            break;
-        case TokElse:
-            break;
-        case TokFor:
-            break;
-        case TokWhile:
-            break;
-        case TokDo:
-            break;
-        case TokSwitch:
-            break;
-        case TokCase:
-            break;
-        case TokDefault:
-            break;
-        case TokReturn:
-            break;
-        case TokBreak:
-            break;
-        case TokContinue:
-            break;
-        case TokGoto:
-            break;
-        case TokSizeof:
-            break;
-    }
-
-    return node;
-}
-
-static void next_token(Parser *parser)
-{
-    parser->cur = parser->peek;
-    parser->peek = next_tok(parser->lexer);
-}
-
-static bool match(Parser *parser, TokenType expected)
-{
-    if (parser->cur->type == expected)
-    {
-        next_token(parser);
-        return true;
-    }
-
-    return false;
-}
-
-static int get_precedence(TokenType type)
-{
-    switch (type)
-    {
-        case TokPlus:
-        case TokMinus:
-            return 10;
-        case TokStar:
-        case TokSlash:
-            return 20;
-        case TokEqual:
-        case TokNotEqual:
-            return 5;
         default:
-            return 0;
+            fprintf(stderr, "Invalid Token!");
+            break;
     }
+
+    if (ret < 0)
+    {
+        fprintf(stderr, "Invalid literal!\n");
+    }
+
+    return ret;
 }
 
 static ASTNode *parse_primary(Parser *parser)
-{
-    ASTNode *node = malloc(sizeof(ASTNode));
-    if (node == NULL)
-    {
-        fprintf(stderr, "Couldn't malloc node");
-        return NULL;
-    }
-
-    switch (parser->cur->type)
-    {
-        case TokIntLiteral:
-        case TokFloatLiteral:
-        case TokCharLiteral:
-        case TokStringLiteral:
-            node->type = ASTNodeLiteral;
-            node->literal.type = parser->cur->type;
-            strncpy(node->literal.val, parser->cur->literal, MAX_TOK_LEN);
-            next_token(parser);
-            return node;
-
-        case TokIdentifier:
-            node->type = ASTNodeIdentifier;
-            strncpy(node->identifier.name, parser->cur->literal, MAX_TOK_LEN);
-            next_token(parser);
-            return node;
-
-        default:
-            free(node);
-            return NULL;
-    }
-}
-
-static ASTNode *parse_literal(Parser *parser)
 {
     Token *tok = peek_tok(parser->lexer);
     if (!tok) return NULL;
@@ -490,27 +307,17 @@ static ASTNode *parse_literal(Parser *parser)
     ASTNode *node;
     create_node(node);
 
-    if (tok->type == TokIntLiteral || tok->type == TokDoubleLiteral)
+    if (is_numeric_literal(tok->type))
     {
         consume_tok(parser->lexer);
-        node->type = ASTNodeLiteral;
-        node->literal.type = tok->type;
-
-        const int ret = (tok->type == TokIntLiteral)
-                              ? atoi_s(tok->literal, &node->literal.int_val)
-                              : atof_s(tok->literal, &node->literal.double_val);
-
-        if (ret < 0)
+        if (parse_numeric_literal(tok, node) != 0)
         {
-            fprintf(stderr, "Invalid %s literal!\n",
-                    tok->type == TokIntLiteral ? "int" : "double");
-            exit(1);
+            goto end;
         }
 
         return node;
     }
-
-    if (tok->type == TokIdentifier)
+    else if (tok->type == TokIdentifier)
     {
         consume_tok(parser->lexer);
         node->type = ASTNodeIdentifier;
@@ -519,40 +326,77 @@ static ASTNode *parse_literal(Parser *parser)
 
         return node;
     }
+    else
+    {
+        //TODO
+    }
 
-    free(node);
+    end:
+//    free(node);
 
     return NULL;
 }
 
-static ASTNode *parse_unary(Parser *parser)
+static ASTNode* parse_unary(Parser *parser)
 {
-    if (parser->cur->type == TokMinus || parser->cur->type == TokNegation || parser->cur->type == TokDecrement ||
-        parser->cur->type == TokIncrement)
+    Token *tok = peek_tok(parser->lexer);
+    if (!tok) return NULL;
+
+    ASTNode *node;
+    create_node(node);
+
+    switch (tok->type)
     {
-        ASTNode *node;
-        create_node(node);
-        node->type = AstNodeUnaryOp;
-        node->unary_op.type = parser->cur->type;
-        next_token(parser);
-        node->unary_op.op = parse_unary(parser);
-        return node;
+        case TokStar:
+            do
+            {
+                ASTNode *deref;
+                create_node(deref);
+                deref->type = ASTNodePointerDeref;
+                deref->unary_op.op = node;
+
+                node = deref;
+
+                consume_tok(parser->lexer);
+            } while(peek_tok(parser->lexer)->type == TokStar); //TODO null check
+            break;
+        case TokMinus:
+            node->type = ASTNodeUnaryNegation;
+            break;
+        case TokNegation:
+            node->type = ASTNodeLogicalNegation;
+            break;
+        case TokIncrement:
+            node->type = ASTNodeIncrement;
+            break;
+        case TokDecrement:
+            node->type = ASTNodeDecrement;
+            break;
+        case TokAnd:
+            node->type = ASTNodeAddressOf;
+            break;
+        default:
+            fprintf(stderr, "Invalid Tok!");
+            free(node);
+            node = NULL;
+            goto end;
     }
 
-    return parse_primary(parser);
+    consume_tok(parser->lexer);
+    node->unary_op.op = parse_primary(parser);
+
+    end:
+    return node;
 }
 
-static ASTNode *parse_binary(Parser *parser, int precedence)
+static ASTNode* parse_binary(Parser *parser, int precedence)
 {
 
-
+    return NULL;
 }
 
-ASTNode *build_AST(Lexer *lexer)
+ASTNode* build_AST(Lexer *lexer)
 {
-    ASTNode node;
-    while ((node = next_node(lexer)).type != ASTNodeEOF)
-    {
 
-    }
+    return NULL;
 }

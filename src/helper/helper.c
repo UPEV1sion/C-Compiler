@@ -9,24 +9,71 @@
 #include <stdlib.h>
 #include <string.h>
 
-int atoi_s(const char *restrict str, int *out)
+static int str_to_signed_num(const char *restrict str, long long *out, const ssize_t lower_bound, const ssize_t upper_bound)
 {
     char *end_ptr;
     errno = 0;
-    long val = strtol(str, &end_ptr, 10);
+    long long val = strtoll(str, &end_ptr, 10);
 
-    if (errno == ERANGE || val > INT_MAX || val < INT_MIN)
+    if (errno == ERANGE || val > upper_bound || val < lower_bound)
         return -1;
 
     if (end_ptr == str || *end_ptr != 0)
         return -2;
 
-    *out = (int) val;
+    *out = val;
 
     return 0;
 }
 
-static int str_to_float(const char *restrict str, float *out)
+int atoi_s(const char *restrict str, int *out)
+{
+    return str_to_signed_num(str, (long long *) out, INT_MIN, INT_MAX);
+}
+
+int atol_s(const char *restrict str, long *out)
+{
+    return str_to_signed_num(str, (long long *) out, LONG_MIN, LONG_MAX);
+}
+
+int atoll_s(const char *restrict str, long long *out)
+{
+    return str_to_signed_num(str, out, LLONG_MIN, LLONG_MAX);
+}
+
+static int str_to_unsigned_num(const char *restrict str, unsigned long long *out, const size_t upper_bound)
+{
+    char *end_ptr;
+    errno = 0;
+    unsigned long long val = strtoull(str, &end_ptr, 10);
+
+    if (errno == ERANGE || val > upper_bound)
+        return -1;
+
+    if (end_ptr == str || *end_ptr != 0)
+        return -2;
+
+    *out = val;
+
+    return 0;
+}
+
+int atoui_s(const char *restrict str, unsigned int *out)
+{
+    return str_to_unsigned_num(str, (unsigned long long *) out, UINT_MAX);
+}
+
+int atoul_s(const char *restrict str, unsigned long *out)
+{
+    return str_to_unsigned_num(str, (unsigned long long *) out, ULONG_MAX);
+}
+
+int atoull_s(const char *restrict str, unsigned long long *out)
+{
+    return str_to_unsigned_num(str, out, ULLONG_MAX);
+}
+
+int atof_s(const char *restrict str, float *out)
 {
     char *end_ptr;
     errno = 0;
@@ -43,8 +90,7 @@ static int str_to_float(const char *restrict str, float *out)
     return 0;
 }
 
-
-static int str_to_double(const char *restrict str, double *out)
+int atod_s(const char *restrict str, double *out)
 {
     char *end_ptr;
     errno = 0;
@@ -61,9 +107,21 @@ static int str_to_double(const char *restrict str, double *out)
     return 0;
 }
 
-int atof_s(const char *restrict str, void *out)
+int atold_s(const char *restrict str, long double *out)
 {
-    return strstr(str, "%d") ? str_to_double(str, out) : str_to_float(str, out);
+    char *end_ptr;
+    errno = 0;
+    long double val = strtold(str, &end_ptr);
+
+    if (errno == ERANGE)
+        return -1;
+
+    if (end_ptr == str || *end_ptr != 0)
+        return -2;
+
+    *out = val;
+
+    return 0;
 }
 
 
