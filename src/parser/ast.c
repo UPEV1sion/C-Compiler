@@ -3,6 +3,7 @@
 //
 
 #include "ast.h"
+#include "../helper/helper.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,7 @@ typedef struct
     Lexer *lexer;
     Token *cur;
     Token *peek;
+    ASTNode *root;
 } Parser;
 
 typedef enum
@@ -70,7 +72,12 @@ struct ASTNode
         struct
         {
             TokenType type;
-            char val[MAX_TOK_LEN];
+            union
+            {
+                char val[MAX_TOK_LEN];
+                double double_val;
+                int int_val;
+            };
         } literal;
 
         struct
@@ -218,7 +225,7 @@ static const ASTNode AST_NODE_ERROR_DUMMY = {0};
 
 static ASTNode next_node(Lexer *lexer)
 {
-    Token *tok = next_tok(lexer);
+    Token *tok = peek_tok(lexer);
     if (tok == NULL) return AST_NODE_ERROR_DUMMY;
 
     ASTNode node = {0};
@@ -442,10 +449,10 @@ static int get_precedence(TokenType type)
     }
 }
 
-static ASTNode* parse_primary(Parser *parser)
+static ASTNode *parse_primary(Parser *parser)
 {
     ASTNode *node = malloc(sizeof(ASTNode));
-    if(node == NULL)
+    if (node == NULL)
     {
         fprintf(stderr, "Couldn't malloc node");
         return NULL;
@@ -475,9 +482,53 @@ static ASTNode* parse_primary(Parser *parser)
     }
 }
 
-static ASTNode* parse_unary(Parser *parser)
+static ASTNode *parse_literal(Parser *parser)
 {
-    if (parser->cur->type == TokMinus || parser->cur->type == TokNegation)
+    Token *tok = peek_tok(parser->lexer);
+    if (!tok) return NULL;
+
+    ASTNode *node;
+    create_node(node);
+
+    if (tok->type == TokIntLiteral || tok->type == TokDoubleLiteral)
+    {
+        consume_tok(parser->lexer);
+        node->type = ASTNodeLiteral;
+        node->literal.type = tok->type;
+
+        const int ret = (tok->type == TokIntLiteral)
+                              ? atoi_s(tok->literal, &node->literal.int_val)
+                              : atof_s(tok->literal, &node->literal.double_val);
+
+        if (ret < 0)
+        {
+            fprintf(stderr, "Invalid %s literal!\n",
+                    tok->type == TokIntLiteral ? "int" : "double");
+            exit(1);
+        }
+
+        return node;
+    }
+
+    if (tok->type == TokIdentifier)
+    {
+        consume_tok(parser->lexer);
+        node->type = ASTNodeIdentifier;
+        strncpy(node->identifier.name, tok->literal, MAX_TOK_LEN);
+        node->identifier.name[MAX_TOK_LEN - 1] = 0;
+
+        return node;
+    }
+
+    free(node);
+
+    return NULL;
+}
+
+static ASTNode *parse_unary(Parser *parser)
+{
+    if (parser->cur->type == TokMinus || parser->cur->type == TokNegation || parser->cur->type == TokDecrement ||
+        parser->cur->type == TokIncrement)
     {
         ASTNode *node;
         create_node(node);
@@ -491,13 +542,13 @@ static ASTNode* parse_unary(Parser *parser)
     return parse_primary(parser);
 }
 
-static ASTNode* parse_binary(Parser *parser, int precedence)
+static ASTNode *parse_binary(Parser *parser, int precedence)
 {
 
 
 }
 
-ASTNode* build_AST(Lexer *lexer)
+ASTNode *build_AST(Lexer *lexer)
 {
     ASTNode node;
     while ((node = next_node(lexer)).type != ASTNodeEOF)

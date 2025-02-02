@@ -16,6 +16,8 @@ struct Lexer
     size_t line;
     size_t column;
     int current_char;
+    Token *current_tok;
+    Token *next_tok;
 };
 
 struct keyword
@@ -66,44 +68,6 @@ const static struct keyword KEYWORDS[] = {
         /*--------KEYWORDS: OTHER--------*/
         {"sizeof",   TokSizeof},
 };
-
-int cleanup_lexer(Lexer *lexer)
-{
-    if (fclose(lexer->file) != 0)
-    {
-        fprintf(stderr, "Couldn't close file!");
-        return -1;
-    }
-    free(lexer);
-
-    return 0;
-}
-
-Lexer *create_lexer(const char *filename)
-{
-    Lexer *lexer = malloc(sizeof(Lexer));
-    if (lexer == NULL)
-    {
-        fprintf(stderr, "Couldn't create Lexer!");
-        return lexer;
-    }
-
-    lexer->file = fopen(filename, "r");
-    if (lexer->file == NULL)
-    {
-        fprintf(stderr, "Couldn't open input file!");
-        free(lexer);
-        return NULL;
-    }
-
-    lexer->pos = 0;
-    lexer->line = 1;
-    lexer->column = 1;
-
-    lexer->current_char = fgetc(lexer->file);
-
-    return lexer;
-}
 
 static Token *create_tok(const TokenType type, const char *literal)
 {
@@ -232,7 +196,7 @@ match_compound_operator(Lexer *lexer, const char base, const TokenType assignmen
     return tok;
 }
 
-Token *next_tok(Lexer *lexer)
+static Token *get_next_token(Lexer *lexer)
 {
 
     skip_spaces(lexer);
@@ -554,3 +518,61 @@ Token *next_tok(Lexer *lexer)
 
     return tok;
 }
+
+int cleanup_lexer(Lexer *lexer)
+{
+    if (fclose(lexer->file) != 0)
+    {
+        fprintf(stderr, "Couldn't close file!");
+        return -1;
+    }
+    free(lexer);
+
+    return 0;
+}
+
+Lexer *create_lexer(const char *filename)
+{
+    Lexer *lexer = malloc(sizeof(Lexer));
+    if (lexer == NULL)
+    {
+        fprintf(stderr, "Couldn't create Lexer!");
+        return lexer;
+    }
+
+    lexer->file = fopen(filename, "r");
+    if (lexer->file == NULL)
+    {
+        fprintf(stderr, "Couldn't open input file!");
+        free(lexer);
+        return NULL;
+    }
+
+    lexer->pos = 0;
+    lexer->line = 1;
+    lexer->column = 1;
+
+    lexer->current_char = fgetc(lexer->file);
+
+    lexer->current_tok = get_next_token(lexer);
+    lexer->next_tok = get_next_token(lexer);
+
+    return lexer;
+}
+
+Token* peek_tok(Lexer *lexer)
+{
+    return lexer->next_tok;
+}
+
+Token* consume_tok(Lexer *lexer)
+{
+    Token *old_cur = lexer->current_tok;
+    lexer->current_tok = lexer->next_tok;
+    lexer->next_tok = get_next_token(lexer);
+
+    free(old_cur);
+
+    return lexer->current_tok;
+}
+

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "lexer/lexer.h"
+#include "parser/ast.h"
 
 int main(const int argc, const char *argv[])
 {
@@ -13,11 +14,13 @@ int main(const int argc, const char *argv[])
 
     Lexer *lexer = create_lexer(argv[1]);
     Token *tok;
-    while((tok = next_tok(lexer))->type != TokEOF)
+    while((tok = consume_tok(lexer))->type != TokEOF)
     {
         puts(tok->literal);
         free(tok);
     }
+
+    ASTNode *root = build_AST(lexer);
 
     cleanup_lexer(lexer);
 

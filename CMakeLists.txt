@@ -7,4 +7,6 @@ add_executable(ecc src/main.c
         src/lexer/lexer.c
         src/lexer/lexer.h
         src/parser/ast.c
-        src/parser/ast.h)
+        src/parser/ast.h
+        src/helper/helper.c
+        src/helper/helper.h)

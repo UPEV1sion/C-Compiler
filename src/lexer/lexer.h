@@ -146,4 +146,6 @@ typedef struct Lexer Lexer;
 Lexer* create_lexer(const char *filename);
 int cleanup_lexer(Lexer *lexer);
 
-Token* next_tok(Lexer *lexer);
+//Token* get_next_token(Lexer *lexer);
+Token* peek_tok(Lexer *lexer);
+Token* consume_tok(Lexer *lexer);
