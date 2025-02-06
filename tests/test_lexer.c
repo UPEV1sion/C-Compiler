@@ -14,7 +14,12 @@
 
 void test_math(void)
 {
-    Lexer *lexer = create_lexer("/home/escha/CLionProjects/ecc/tests/math.c");
+    const char *math_file = "math.c";
+    FILE *file = fopen(math_file, "w");
+    CU_ASSERT_PTR_NOT_NULL(file)
+    fclose(file);
+
+    Lexer *lexer = create_lexer(TEST_DIR "/math.c");
     CU_ASSERT_PTR_NOT_NULL(lexer)
 
     {

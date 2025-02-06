@@ -7,6 +7,9 @@ add_executable(my_tests
         ../src/lexer/lexer.h
 )
 
+set(TESTS_DIR "${CMAKE_SOURCE_DIR}/tests")
+add_definitions(-DTEST_DIR="${TESTS_DIR}")
+
 target_include_directories(my_tests PRIVATE ${CUnit_INCLUDE_DIRS})
 
 target_link_libraries(my_tests PRIVATE ${CUnit_LIBRARIES})
