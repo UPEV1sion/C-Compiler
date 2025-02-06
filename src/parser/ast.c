@@ -7,7 +7,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 #define create_node(node) do { \
@@ -389,14 +388,18 @@ static ASTNode* parse_unary(Parser *parser)
     return node;
 }
 
-static ASTNode* parse_binary(Parser *parser, int precedence)
+static ASTNode* parse_binary(Parser *parser)
 {
+    (void) parser;
 
     return NULL;
 }
 
 ASTNode* build_AST(Lexer *lexer)
 {
+    (void) lexer;
+    (void) parse_binary;
+    (void) parse_unary;
 
     return NULL;
 }

@@ -26,7 +26,7 @@ struct keyword
     TokenType type;
 };
 
-const static struct keyword KEYWORDS[] = {
+static const struct keyword KEYWORDS[] = {
         /*--------KEYWORDS: DATA TYPES--------*/
         {"char",     TokChar},
         {"short",    TokShort},
@@ -175,6 +175,12 @@ static void skip_comments(Lexer *lexer)
             skip_multiline_comment(lexer);
         }
     }
+    else
+    {
+        return;
+    }
+
+    skip_comments(lexer);
 }
 
 
@@ -200,8 +206,68 @@ static Token *get_next_token(Lexer *lexer)
 {
 
     skip_spaces(lexer);
-
     Token *tok = NULL;
+
+
+    if (isdigit(lexer->current_char))
+    {
+        char number[MAX_TOK_LEN];
+        size_t i = 0;
+        while (lexer->current_char != EOF && (isdigit(lexer->current_char) || lexer->current_char == '.'))
+        {
+            if (i >= MAX_TOK_LEN - 1) break;
+            number[i++] = (char) lexer->current_char;
+            next_char(lexer);
+        }
+        number[i] = 0;
+        if (lexer->current_char == EOF)
+        {
+            tok = create_tok(TokEOF, "EOF");
+            goto END;
+        }
+        else
+        {
+            ungetc(lexer->current_char, lexer->file);
+        }
+
+        //TODO more refined.
+        tok = strchr(number, '.') ? create_tok(TokDoubleLiteral, number) : create_tok(TokIntLiteral, number);
+        goto END;
+    }
+    else if (isalpha(lexer->current_char) || lexer->current_char == '_')
+    {
+        char buffer[MAX_TOK_LEN];
+        size_t i = 0;
+        while (lexer->current_char != EOF && (isalnum(lexer->current_char) || lexer->current_char == '_'))
+        {
+            if (i >= MAX_TOK_LEN - 1) break;
+            buffer[i++] = (char) lexer->current_char;
+            next_char(lexer);
+        }
+        buffer[i] = 0;
+        if (lexer->current_char == EOF)
+        {
+            tok = create_tok(TokEOF, "EOF");
+            goto END;
+        }
+        else
+        {
+            ungetc(lexer->current_char, lexer->file);
+        }
+
+        for (size_t j = 0; j < sizeof KEYWORDS / sizeof KEYWORDS[0]; ++j)
+        {
+            if (strcmp(buffer, KEYWORDS[j].keyword) == 0)
+            {
+                tok = create_tok(KEYWORDS[j].type, KEYWORDS[j].keyword);
+                goto END;
+            }
+        }
+
+        tok = create_tok(TokIdentifier, buffer);
+        goto END;
+    }
+
     switch (lexer->current_char)
     {
         case '=':
@@ -361,71 +427,9 @@ static Token *get_next_token(Lexer *lexer)
         case ']':
             tok = create_tok(TokRBracket, "]");
             break;
-        case '0' ... '9':
-        {
-            char number[MAX_TOK_LEN];
-            size_t i = 0;
-            while (lexer->current_char != EOF && (isdigit(lexer->current_char) || lexer->current_char == '.'))
-            {
-                if (i >= MAX_TOK_LEN - 1) break;
-                number[i++] = (char) lexer->current_char;
-                next_char(lexer);
-            }
-            number[i] = 0;
-            if (lexer->current_char == EOF)
-            {
-                tok = create_tok(TokEOF, "EOF");
-                break;
-            }
-            else
-            {
-                ungetc(lexer->current_char, lexer->file);
-            }
-
-            //TODO more refined.
-            tok = strchr(number, '.') ? create_tok(TokDoubleLiteral, number) : create_tok(TokIntLiteral, number);
-            break;
-        }
-        case 'a' ... 'z': //TODO refactor
-        case 'A' ... 'Z':
-        case '_':
-        {
-            char buffer[MAX_TOK_LEN];
-            size_t i = 0;
-            while (lexer->current_char != EOF && (isalnum(lexer->current_char) || lexer->current_char == '_'))
-            {
-                if (i >= MAX_TOK_LEN - 1) break;
-                buffer[i++] = (char) lexer->current_char;
-                next_char(lexer);
-            }
-            buffer[i] = 0;
-            if (lexer->current_char == EOF)
-            {
-                tok = create_tok(TokEOF, "EOF");
-                break;
-            }
-            else
-            {
-                ungetc(lexer->current_char, lexer->file);
-            }
-
-            for (size_t j = 0; j < sizeof KEYWORDS / sizeof KEYWORDS[0]; ++j)
-            {
-                if (strcmp(buffer, KEYWORDS[j].keyword) == 0)
-                {
-                    tok = create_tok(KEYWORDS[j].type, KEYWORDS[j].keyword);
-                    goto WORD_END;
-                }
-            }
-
-            tok = create_tok(TokIdentifier, buffer);
-
-            WORD_END:
-            break;
-        }
         case '"':
         {
-            char string_literal[MAX_TOK_LEN];
+            char string_literal[MAX_TOK_LEN] = {0};
             size_t i = 0;
             next_char(lexer);
             while (lexer->current_char != EOF && lexer->current_char != '"')
@@ -450,7 +454,7 @@ static Token *get_next_token(Lexer *lexer)
         }
         case '\'':
         {
-            char char_literal[MAX_TOK_LEN];
+            char char_literal[MAX_TOK_LEN] = {0};
             size_t i = 0;
 
             next_char(lexer);
@@ -502,8 +506,8 @@ static Token *get_next_token(Lexer *lexer)
             }
             else
             {
-                fprintf(stderr, "Character literal not closed properly.\n");
-                return NULL;
+//                fprintf(stderr, "Character literal not closed properly.\n");
+                tok = create_tok(TokIllegal, char_literal);
             }
             CHAR_END:
             break;
@@ -514,6 +518,7 @@ static Token *get_next_token(Lexer *lexer)
             break;
     }
 
+    END:
     next_char(lexer);
 
     return tok;
@@ -526,6 +531,8 @@ int cleanup_lexer(Lexer *lexer)
         fprintf(stderr, "Couldn't close file!");
         return -1;
     }
+
+    free(lexer->next_tok);
     free(lexer);
 
     return 0;
@@ -552,26 +559,23 @@ Lexer *create_lexer(const char *filename)
     lexer->line = 1;
     lexer->column = 1;
 
-    lexer->current_char = fgetc(lexer->file);
+    lexer->current_char = next_char(lexer);
 
-    lexer->current_tok = get_next_token(lexer);
+    lexer->current_tok = NULL;
     lexer->next_tok = get_next_token(lexer);
 
     return lexer;
 }
 
-Token* peek_tok(Lexer *lexer)
+Token *peek_tok(Lexer *lexer)
 {
     return lexer->next_tok;
 }
 
-Token* consume_tok(Lexer *lexer)
+Token *consume_tok(Lexer *lexer)
 {
-    Token *old_cur = lexer->current_tok;
     lexer->current_tok = lexer->next_tok;
     lexer->next_tok = get_next_token(lexer);
-
-    free(old_cur);
 
     return lexer->current_tok;
 }
