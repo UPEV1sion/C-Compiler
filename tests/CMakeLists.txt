@@ -10,5 +10,5 @@ add_executable(my_tests
 target_include_directories(my_tests PRIVATE ${CUnit_INCLUDE_DIRS})
 target_link_libraries(my_tests PRIVATE ${CUnit_LIBRARIES})
 
-enable_testing()
+#enable_testing()
 add_test(NAME LexerTest COMMAND my_tests)
