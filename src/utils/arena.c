@@ -65,11 +65,16 @@ void *arena_calloc(Arena *arena, const size_t nbytes) {
 }
 
 void *arena_realloc(Arena *arena, const size_t nbytes) {
-
+    (void) arena;
+    (void) nbytes;
+    return NULL;
 }
 
 void *arena_reallocarray(Arena *arena, const size_t nbytes) {
+    (void) arena;
+    (void) nbytes;
 
+    return NULL;
 }
 
 char *arena_strdup(Arena *arena, const char *str) {
