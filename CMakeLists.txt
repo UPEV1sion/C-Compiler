@@ -15,6 +15,8 @@ add_executable(ecc
         src/parser/ast.h
         src/helper/helper.c
         src/helper/helper.h
+        src/utils/arena.c
+        src/utils/arena.h
 )
 
 target_compile_options(ecc PRIVATE -Wall -Wextra -Werror -pedantic)
